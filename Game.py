@@ -1,5 +1,7 @@
+import math
 import os
 import pygame
+import random
 
 WIDTH = 600
 HEIGHT = 600
@@ -16,6 +18,7 @@ SCORE = 0
 BONUS_SCORE = 0
 ALI_X = 20
 ALI_Y = 80
+SHOOTING_COUNTER = 4
 
 pygame.init()
 pygame.mixer.init()  # for sound
@@ -23,6 +26,7 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pygame.display.set_caption("My Game")
 clock = pygame.time.Clock()
 pygame.time.set_timer(pygame.USEREVENT, 1000)
+random.seed()
 
 # game_folder = os.path.dirname('/home/xeno/ciuchcio/')
 # img_folder = os.path.join(game_folder, 'img')
@@ -30,18 +34,20 @@ pygame.time.set_timer(pygame.USEREVENT, 1000)
 
 
 class Bullet(pygame.sprite.Sprite):
-    def __init__(self, x, y):
+    def __init__(self, x, y, speedy):
         pygame.sprite.Sprite.__init__(self)
-        self.image = pygame.Surface((1, 4))
+        self.image = pygame.Surface((2, 8))
         self.image.fill(RED)
         self.rect = self.image.get_rect()
         self.rect.bottom = y
         self.rect.centerx = x
-        self.speedy = -10
+        self.speedy = speedy
 
     def update(self):
         self.rect.y += self.speedy
-        if self.rect.bottom < 0:
+        if self.rect.bottom < 54:
+            self.kill()
+        if self.rect.top > HEIGHT-54:
             self.kill()
 
 
@@ -61,13 +67,13 @@ class Player(pygame.sprite.Sprite):
             self.rect.x -= speed_x
         if key_stat[pygame.K_RIGHT]:
             self.rect.x += speed_x
-        if self.rect.right > WIDTH:
-            self.rect.right = WIDTH
-        if self.rect.left < 0:
-            self.rect.left = 0
+        if self.rect.right > WIDTH-50:
+            self.rect.right = WIDTH-50
+        if self.rect.left < 50:
+            self.rect.left = 50
 
     def shoot(self):
-        bullet = Bullet(self.rect.centerx, self.rect.top)
+        bullet = Bullet(self.rect.centerx, self.rect.top, -6)
         bullets.add(bullet)
 
 
@@ -79,6 +85,20 @@ class Aliens(pygame.sprite.Sprite):
         self.rect = self.image.get_rect()
         self.rect.x = x
         self.rect.y = y
+
+    def shoot(self):
+        bullet = Bullet(self.rect.centerx+10, self.rect.top, 6)
+        aliens_bullet_group.add(bullet)
+
+
+class SecretAlien(pygame.sprite.Sprite):
+    def __init__(self, x=-20):
+        pygame.sprite.Sprite.__init__(self)
+        self.image = pygame.Surface((40, 20))
+        self.image.fill(GREEN)
+        self.rect = self.image.get_rect()
+        self.rect.x = x
+        self.rect.y = math.sin(x) - 50
 
 
 class Brick(pygame.sprite.Sprite):
@@ -160,13 +180,18 @@ aliens1 = [alien11, alien12, alien13, alien14, alien15, alien16, alien17, alien1
 
 aliens_all = [aliens5, aliens4, aliens3, aliens2, aliens1]
 
+secret_alien = SecretAlien()
+
 bullets = pygame.sprite.Group()
 player_group = pygame.sprite.Group()
 all_aliens_group = pygame.sprite.Group()
 wall_group = pygame.sprite.Group()
+aliens_bullet_group = pygame.sprite.Group()
+secret_alien_group = pygame.sprite.Group()
 
 player_group.add(player)
 all_aliens_group.add(aliens_all)
+secret_alien_group.add(secret_alien)
 
 
 def draw_the_wall(x_cor):
@@ -196,6 +221,13 @@ while running:
         if event.type == pygame.QUIT:
             running = False
         elif event.type == pygame.USEREVENT:
+            if SHOOTING_COUNTER == 0:
+                rand_row = random.randrange(len(aliens_all))
+                rand_ali = random.randrange(len(aliens1))
+                if aliens_all[rand_row][rand_ali] in all_aliens_group:
+                    aliens_all[rand_row][rand_ali].shoot()
+                    SHOOTING_COUNTER = 4
+            SHOOTING_COUNTER -= 1
             # Aliens mowing
             if (ALI_Y / 20) % 2 == 0:
                 ALI_X += 10
@@ -209,9 +241,11 @@ while running:
             if keys[pygame.K_SPACE]:
                 player.shoot()
 
+    secret_alien.rect.x += 1
     # Update
     player_group.update()
     bullets.update()
+    aliens_bullet_group.update()
     for i in range(len(aliens_all)):
         for j in range(len(aliens_all[i])):
             aliens_all[i][j].rect.x = 75+((40 * j)+ALI_X)
@@ -221,17 +255,22 @@ while running:
     hits = pygame.sprite.groupcollide(all_aliens_group, bullets, True, True)
     for hit in hits:
         a = Aliens()
-        all_aliens_group.add(a)
+        a.kill()
 
     hits = pygame.sprite.groupcollide(bullets, wall_group, True, True)
     for hit in hits:
         w = Brick()
-        wall_group.add(w)
+        w.kill()
 
     hits = pygame.sprite.groupcollide(all_aliens_group, wall_group, False, True)
     for hit in hits:
         w = Brick()
-        wall_group.add(w)
+        w.kill()
+
+    hits = pygame.sprite.groupcollide(aliens_bullet_group, wall_group, True, True)
+    for hit in hits:
+        w = Brick()
+        w.kill()
 
     # Draw / render
     screen.fill(BLACK)
@@ -244,6 +283,8 @@ while running:
 
     bullets.draw(screen)
     wall_group.draw(screen)
+    secret_alien_group.draw(screen)
+    aliens_bullet_group.draw(screen)
     all_aliens_group.draw(screen)
     player_group.draw(screen)
     pygame.display.flip()
