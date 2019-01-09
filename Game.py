@@ -5,8 +5,6 @@ import time
 import pygame
 import random
 
-import pyganim
-
 WIDTH = 600
 HEIGHT = 600
 FPS = 30
@@ -117,9 +115,6 @@ class Aliens(pygame.sprite.Sprite):
         self.sprite_img = sprite_img
         self.image = pygame.transform.scale(aliens_img[self.sprite_img][self.mov_img], (30, 25))
         self.image.set_colorkey(BLACK)
-        # self.boltAnimMove = pyganim.PygAnimation(aliens_img[sprite_img])
-        # self.boltAnimMove.play()
-        # self.boltAnimMove.blit(self.image, (0, 0))  # П
         self.rect = self.image.get_rect()
 
     def shoot(self):
@@ -129,8 +124,6 @@ class Aliens(pygame.sprite.Sprite):
     def update(self):
         if MOVE == 1:
             self.image = pygame.transform.scale(aliens_img[self.sprite_img][0], (30, 25))
-            # self.image.fill(BLACK)
-            # self.boltAnimMove.blit(self.image, (0, 0))
         if MOVE == 0:
             self.image = pygame.transform.scale(aliens_img[self.sprite_img][1], (30, 25))
 
