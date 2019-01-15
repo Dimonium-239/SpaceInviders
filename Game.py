@@ -24,7 +24,7 @@ SECRET_ALI_X = 3
 SECRET_ALI_y = 3
 SHOOTING_COUNTER = 4
 TIMER_SECRET_ALI = 12
-TIME_OF_ALL = 1000
+TIME_OF_ALL = 800
 MOVE = 0
 FONT = "monospace"
 MENU_RUN = True
@@ -39,11 +39,19 @@ pygame.mixer.init()  # for sound
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 menu_screen = pygame.display.set_mode((WIDTH, HEIGHT))
 pause_screen = pygame.display.set_mode((WIDTH, HEIGHT))
+hs_screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
 pygame.display.set_caption("Space Invaders")
 clock = pygame.time.Clock()
 pygame.time.set_timer(pygame.USEREVENT, TIME_OF_ALL)
 random.seed()
+
+menu_snd = pygame.mixer.Sound('sound/menu.wav')
+wall_snd = pygame.mixer.Sound('sound/wall.wav')
+ali_snd = pygame.mixer.Sound('sound/ali.wav')
+player_shoot_snd = pygame.mixer.Sound('sound/player_shoot.wav')
+secr_ali_snd = pygame.mixer.Sound('sound/secr_alli.wav')
+
 
 img_directory = os.path.join(os.path.dirname(__file__), 'img')
 player_img = pygame.image.load(os.path.join(img_directory, 'Laser_Cannon.png')).convert()
@@ -54,6 +62,7 @@ alien21_img = pygame.image.load(os.path.join(img_directory, 'Alien2.1.png')).con
 alien22_img = pygame.image.load(os.path.join(img_directory, 'Alien2.2.png')).convert()
 alien11_img = pygame.image.load(os.path.join(img_directory, 'Alien1.1.png')).convert()
 alien12_img = pygame.image.load(os.path.join(img_directory, 'Alien1.2.png')).convert()
+logo_img = pygame.image.load(os.path.join(img_directory, 'logo.png')).convert()
 
 aliens_img = [[alien32_img, alien31_img], [alien22_img, alien21_img], [alien12_img, alien11_img]]
 
@@ -73,6 +82,7 @@ class Bullet(pygame.sprite.Sprite):
         if self.rect.bottom < 54:
             self.kill()
         if self.rect.top > HEIGHT - 54:
+            play_music(wall_snd)
             self.kill()
 
 
@@ -98,6 +108,7 @@ class Player(pygame.sprite.Sprite):
             self.rect.left = 30
 
     def shoot(self):
+        play_music(player_shoot_snd)
         if SCORE < 250:
             bullet = Bullet(self.rect.centerx, self.rect.top, -6)
             bullets.add(bullet)
@@ -124,8 +135,10 @@ class Aliens(pygame.sprite.Sprite):
     def update(self):
         if MOVE == 1:
             self.image = pygame.transform.scale(aliens_img[self.sprite_img][0], (30, 25))
+            self.image.set_colorkey(BLACK)
         if MOVE == 0:
             self.image = pygame.transform.scale(aliens_img[self.sprite_img][1], (30, 25))
+            self.image.set_colorkey(BLACK)
 
 
 class SecretAlien(pygame.sprite.Sprite):
@@ -160,6 +173,11 @@ def button(surf, color, x, text):
     myfont = pygame.font.SysFont(FONT, 20)
     label = myfont.render(text, 1, color)
     surf.blit(label, (WIDTH/2-75+10, x+10))
+
+
+def play_music(snd):
+    pygame.mixer.Sound.play(snd)
+    pygame.mixer.music.stop()
 
 
 player = Player()
@@ -234,42 +252,60 @@ aliens_all = [aliens5, aliens4, aliens3, aliens2, aliens1]
 MENU_COUNTER = 0
 while MENU_RUN:
     menu_screen.fill(BLACK)
+    logo_img = pygame.transform.scale(logo_img, (400, 400))
+    menu_screen.blit(logo_img, (WIDTH/2-200, -50))
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             MENU_RUN = False
             RUNNING = False
         elif event.type == pygame.KEYDOWN:
-            if event.key == pygame.K_ESCAPE:
-                MENU_RUN = False
-                RUNNING = False
             if event.key == pygame.K_DOWN:
+                play_music(menu_snd)
                 MENU_COUNTER += 1
                 if MENU_COUNTER > 2:
                     MENU_COUNTER = 0
             if event.key == pygame.K_UP:
+                play_music(menu_snd)
                 MENU_COUNTER -= 1
                 if MENU_COUNTER < 0:
                     MENU_COUNTER = 2
             if event.key == pygame.K_RETURN:
+                play_music(menu_snd)
                 if MENU_COUNTER == 0:
                     MENU_RUN = False
                 elif MENU_COUNTER == 1:
-                    pass
+                    score_running = True
+                    while score_running:
+                        hs_screen.fill(BLACK)
+                        f = open("score", 'r')
+                        myfont = pygame.font.SysFont(FONT, 20)
+                        label = myfont.render("Last Score: " + str(f.read()), 1, GREEN)
+                        hs_screen.blit(label, (WIDTH/2-250, 200))
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
+                                score_running = False
+                                MENU_RUN = False
+                                RUNNING = False
+                            elif event.type == pygame.KEYDOWN:
+                                if event.key == pygame.K_ESCAPE:
+                                    score_running = False
+                        frame(hs_screen)
+                        pygame.display.flip()
                 elif MENU_COUNTER == 2:
                     MENU_RUN = False
                     RUNNING = False
 
     if MENU_COUNTER == 0:
         button(menu_screen, YELLOW, 340, "Start")
-        button(menu_screen, GREEN, 400, "High score")
+        button(menu_screen, GREEN, 400, "Last score")
         button(menu_screen, GREEN, 460, "Exit")
     elif MENU_COUNTER == 1:
         button(menu_screen, GREEN, 340, "Start")
-        button(menu_screen, YELLOW, 400, "High score")
+        button(menu_screen, YELLOW, 400, "Last score")
         button(menu_screen, GREEN, 460, "Exit")
     elif MENU_COUNTER == 2:
         button(menu_screen, GREEN, 340, "Start")
-        button(menu_screen, GREEN, 400, "High score")
+        button(menu_screen, GREEN, 400, "Last score")
         button(menu_screen, YELLOW, 460, "Exit")
 
     frame(menu_screen)
@@ -324,26 +360,29 @@ while RUNNING:
             RUNNING = False
         elif event.type == pygame.KEYDOWN:
             if event.key == pygame.K_ESCAPE:
+                play_music(menu_snd)
                 MENU_COUNTER = 0
                 while PAUSE_RUN:
                     menu_screen.fill(BLACK)
+                    logo_img = pygame.transform.scale(logo_img, (400, 400))
+                    menu_screen.blit(logo_img, (WIDTH / 2 - 200, -50))
                     for event in pygame.event.get():
                         if event.type == pygame.QUIT:
                             PAUSE_RUN = False
                             RUNNING = False
                         elif event.type == pygame.KEYDOWN:
-                            if event.key == pygame.K_ESCAPE:
-                                PAUSE_RUN = False
-                                RUNNING = True
                             if event.key == pygame.K_DOWN:
+                                play_music(menu_snd)
                                 MENU_COUNTER += 1
                                 if MENU_COUNTER > 1:
                                     MENU_COUNTER = 0
                             if event.key == pygame.K_UP:
+                                play_music(menu_snd)
                                 MENU_COUNTER -= 1
                                 if MENU_COUNTER < 0:
                                     MENU_COUNTER = 1
                             if event.key == pygame.K_RETURN:
+                                play_music(menu_snd)
                                 if MENU_COUNTER == 0:
                                     PAUSE_RUN = False
                                 elif MENU_COUNTER == 1:
@@ -389,6 +428,7 @@ while RUNNING:
                 player.shoot()
 
     if ALI_Y >= 120 and (time.time() - start_time >= TIMER_SECRET_ALI):
+        play_music(secr_ali_snd)
         SECRET_ALI_X += 2
         secret_alien.rect.x = SECRET_ALI_X
         secret_alien.rect.y = 20 * math.sin((SECRET_ALI_X - 100) / 8) + 60
@@ -445,6 +485,7 @@ while RUNNING:
 
     hits = pygame.sprite.groupcollide(bullets, wall_group, True, True)
     for hit in hits:
+        play_music(wall_snd)
         w = Brick()
         w.kill()
 
@@ -455,6 +496,7 @@ while RUNNING:
 
     hits = pygame.sprite.groupcollide(aliens_bullet_group, wall_group, True, True)
     for hit in hits:
+        play_music(wall_snd)
         w = Brick()
         w.kill()
 
@@ -469,26 +511,43 @@ while RUNNING:
     hits = pygame.sprite.groupcollide(player_group, aliens_bullet_group, False, True)
     for hit in hits:
         LIVES -= 1
+        for i in range(3):
+            pygame.time.delay(500)
+        if LIVES < 0:
+            myfont = pygame.font.SysFont(FONT, 20)
+            label = myfont.render("You Loose", 1, GREEN)
+            screen.blit(label, (WIDTH / 2 - 50, 100))
+            pygame.time.delay(3000)
+            f = open("score", 'w')
+            f.write(str(SCORE) + " | Last game was loosing!!!")
+            f.close()
+            RUNNING = False
+
+    hits = pygame.sprite.groupcollide(player_group, all_aliens_group, False, True)
+    for hit in hits:
+        myfont = pygame.font.SysFont(FONT, 20)
+        label = myfont.render("You Loose", 1, GREEN)
+        screen.blit(label, (WIDTH / 2 - 50, 100))
+        pygame.time.delay(3000)
+        f = open("score", 'w')
+        f.write(str(SCORE) + " | Last game was loosing!!!")
+        f.close()
+        RUNNING = False
 
     if 0 >= BONUS_SCORE >= 200:
-        TIME_OF_ALL = 1000
-    elif 200 > BONUS_SCORE >= 300:
         TIME_OF_ALL = 800
-    elif 300 > BONUS_SCORE >= 400:
+    elif 200 > BONUS_SCORE >= 300:
         TIME_OF_ALL = 600
-    elif 500 > BONUS_SCORE >= 600:
+    elif 300 > BONUS_SCORE >= 400:
         TIME_OF_ALL = 400
-    elif BONUS_SCORE > 600:
+    elif 500 > BONUS_SCORE >= 600:
         TIME_OF_ALL = 200
+    elif BONUS_SCORE > 600:
+        TIME_OF_ALL = 50
 
-    if LIVES == 2:
-        pass
-        if LIVES == 1:
-            pass
-            if LIVES == 0:
-                pass
 
     screen.fill(BLACK)
+
     secret_alien_group.draw(screen)
     pygame.draw.rect(screen, BLACK, (0, 0, 20, WIDTH))
     pygame.draw.rect(screen, BLACK, (WIDTH - 19, 0, 20, WIDTH))
@@ -496,6 +555,29 @@ while RUNNING:
     myfont = pygame.font.SysFont(FONT, 20)
     label = myfont.render("Score: " + str(SCORE), 1, GREEN)
     screen.blit(label, (WIDTH - 150, 20))
+    player_img = pygame.transform.scale(player_img, (30, 20))
+    life1 = player_img
+    life2 = player_img
+    life3 = player_img
+    myfont = pygame.font.SysFont(FONT, 20)
+    label = myfont.render("Lives: ", 1, GREEN)
+    screen.blit(label, (WIDTH - 220, HEIGHT - 40))
+    if 0 <= LIVES <= 2:
+        screen.blit(life3, (WIDTH - 60, HEIGHT - 40))
+        if 1 <= LIVES <= 2:
+            screen.blit(life2, (WIDTH - 100, HEIGHT - 40))
+            if LIVES == 2:
+                screen.blit(life1, (WIDTH - 140, HEIGHT - 40))
+
+    if len(all_aliens_group) == 0:
+        myfont = pygame.font.SysFont(FONT, 20)
+        label = myfont.render("You Win", 1, GREEN)
+        screen.blit(label, (WIDTH/2-50, 100))
+        pygame.time.delay(3000)
+        f = open("score", 'w')
+        f.write(str(SCORE) + "| Last game was winning!!!")
+        f.close()
+        RUNNING = False
 
     bullets.draw(screen)
     frame(screen)
